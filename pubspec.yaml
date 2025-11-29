@@ -33,9 +33,11 @@ dependencies:
   camera: ^0.11.3
   tflite_flutter: ^0.12.1
   path_provider: ^2.1.5
-  image: ^3.3.0
+  image: ^3.1.7
   image_picker: ^1.0.7
   cupertino_icons: ^1.0.8
+  shared_preferences: ^2.2.2
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:
@@ -60,8 +62,9 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/models/banana_ripeness.tflite
-    - assets/models/Saba_Ripeness_Model_EfficientNetB0.tflite
+    - assets/models/banana_ripeness_individual.tflite
+    - assets/models/banana_ripeness_bunch.tflite
+    - assets/models/labels.txt
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
