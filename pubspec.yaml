@@ -61,6 +61,7 @@ flutter:
 
   assets:
     - assets/models/banana_ripeness.tflite
+    - assets/models/Saba_Ripeness_Model_EfficientNetB0.tflite
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -45,8 +45,8 @@ class CameraClassifierPage extends StatefulWidget {
 }
 
 class _CameraClassifierPageState extends State<CameraClassifierPage> {
-  static const _labels = ['Unripe', 'Ripe', 'Overripe'];
-  static const _modelAsset = 'assets/models/banana_ripeness.tflite';
+  static const _labels = ['not ripe', 'ripe', 'overripe', "not banana"];
+  static const _modelAsset = 'assets/models/Saba_Ripeness_Model_EfficientNetB0.tflite';
 
   CameraController? _cameraController;
   CameraDescription? _activeCamera;
@@ -65,6 +65,7 @@ class _CameraClassifierPageState extends State<CameraClassifierPage> {
 
   bool _isProcessingFrame = false;
   bool _cameraStreamActive = false;
+  bool _liveModeEnabled = true;
   Uint8List? _lastUploadPreview;
 
   @override
@@ -162,7 +163,7 @@ class _CameraClassifierPageState extends State<CameraClassifierPage> {
       _outputShape != null;
 
   void _processCameraImage(CameraImage image) {
-    if (!_isReady || _isProcessingFrame) return;
+    if (!_isReady || _isProcessingFrame || !_liveModeEnabled) return;
 
     _isProcessingFrame = true;
     _runInference(image).whenComplete(() => _isProcessingFrame = false);
@@ -348,8 +349,9 @@ class _CameraClassifierPageState extends State<CameraClassifierPage> {
       if (!mounted) return;
       setState(() {
         _latestPrediction = prediction;
-        _statusMessage = 'Classified uploaded photo.';
+        _statusMessage = 'Showing uploaded result. Tap Resume Live to scan again.';
         _lastUploadPreview = Uint8List.fromList(img.encodeJpg(decoded));
+        _liveModeEnabled = false;
       });
       if (!mounted) return;
       await _showUploadResult(prediction);
@@ -360,7 +362,7 @@ class _CameraClassifierPageState extends State<CameraClassifierPage> {
       });
     } finally {
       _isProcessingFrame = false;
-      if (controller != null && controller.value.isInitialized) {
+      if (_liveModeEnabled && controller != null && controller.value.isInitialized) {
         await _startImageStream();
       }
     }
@@ -384,6 +386,23 @@ class _CameraClassifierPageState extends State<CameraClassifierPage> {
     }
 
     await _initializeCamera();
+  }
+
+  Future<void> _toggleLiveMode() async {
+    if (_cameraController == null) return;
+    final enableLive = !_liveModeEnabled;
+    if (enableLive) {
+      await _startImageStream();
+    } else {
+      await _stopImageStream();
+    }
+    if (!mounted) return;
+    setState(() {
+      _liveModeEnabled = enableLive;
+      _statusMessage = enableLive
+          ? 'Point the camera at a banana to see ripeness.'
+          : 'Live view paused. Tap Resume Live to scan again.';
+    });
   }
 
   Future<void> _showUploadResult(Prediction prediction) async {
@@ -440,11 +459,6 @@ class _CameraClassifierPageState extends State<CameraClassifierPage> {
               Text(
                 'Confidence: ${(prediction.confidence * 100).toStringAsFixed(1)}%',
                 style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Result shown here so it doesn\'t block the camera preview.',
-                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 8),
               Align(
@@ -516,6 +530,10 @@ class _CameraClassifierPageState extends State<CameraClassifierPage> {
             isReady: _isReady,
             message: _statusMessage,
             showInstructions: _cameraController?.value.isInitialized == true,
+            liveModeEnabled: _liveModeEnabled,
+            onToggleLive: (_cameraController?.value.isInitialized == true && _interpreter != null)
+                ? _toggleLiveMode
+                : null,
           ),
         ),
         Positioned(
@@ -608,11 +626,15 @@ class _StatusBanner extends StatelessWidget {
     required this.isReady,
     required this.message,
     this.showInstructions = false,
+    this.onToggleLive,
+    this.liveModeEnabled = true,
   });
 
   final bool isReady;
   final String message;
   final bool showInstructions;
+  final Future<void> Function()? onToggleLive;
+  final bool liveModeEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -644,6 +666,17 @@ class _StatusBanner extends StatelessWidget {
                 'Tip: Keep the camera steady over a banana to classify instantly, '
                 'or tap "Upload photo" to analyze a saved picture without blocking the viewfinder.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white24,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                ),
+                onPressed: onToggleLive,
+                icon: Icon(liveModeEnabled ? Icons.pause_circle : Icons.play_circle),
+                label: Text(liveModeEnabled ? 'Pause live view' : 'Resume live view'),
               ),
             ],
           ],
